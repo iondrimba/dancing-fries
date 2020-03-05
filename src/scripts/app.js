@@ -31,13 +31,24 @@ export default class App {
 
   init() {
     this.floorShape = this.createShape();
+    this.secondfloorShape = this.createShape();
+    // this.scene.add(this.secondfloorShape);
+
     this.createScene();
     this.createCamera();
     this.addAmbientLight();
     this.addDirectionalLight();
     this.addCameraControls();
     this.addCones(this.floorShape);
-    this.addGround(this.floorShape);
+    this.ground = this.addGround(this.floorShape);
+    this.scene.add(this.ground);
+
+    // this.ground.rotation.y = radians(-45);    
+    // this.groupCones.rotation.z = radians(-45);
+
+    // INVERT CAMERA FOR SECOND VIEW
+    // ALSO CREATE A SECOND DIRECTIONAL LIGHT
+    // this.camera.position.set(30, -30, -30);
 
     this.animate();
   }
@@ -91,7 +102,7 @@ export default class App {
 
   addCameraControls() {
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-    // this.controls.maxPolarAngle = radians(50);
+    this.controls.maxPolarAngle = radians(50);
   }
 
   addAmbientLight() {
@@ -117,7 +128,7 @@ export default class App {
   addCones(shape) {
     const spacing = 2;
     const geometry = new THREE.CylinderGeometry(1, 1, 4, 64);
-    const material = new THREE.MeshPhongMaterial({ color: '#fed244' });
+    const material = new THREE.MeshLambertMaterial({ color: '#fed244' });
     const finalPos = (i) => { return (-i * spacing); }
 
     this.groupCones = new THREE.Object3D();
@@ -156,20 +167,18 @@ export default class App {
   addGround(shape) {
     const groundColor = '#fed244';
     const materials = [
-      new THREE.MeshPhongMaterial({ color: groundColor }),
-      new THREE.MeshPhongMaterial({
-        color: groundColor,
-        side: THREE.DoubleSide
-      }),
+      new THREE.MeshLambertMaterial({ color: groundColor }),
+      new THREE.MeshLambertMaterial({ color: groundColor }),
     ];
 
-    const props = {
-      steps: 8,
+    const extrudeSettings = {
+      curveSegments: 32,
+      steps: 1,
       depth: 4,
-      bevelEnabled: false
+      bevelEnabled: false,
     };
 
-    const geometry = new THREE.ExtrudeGeometry(shape, props);
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     const mesh = new THREE.Mesh(geometry, materials);
 
     mesh.rotation.set(Math.PI * 0.5, 0, 0);
@@ -178,7 +187,7 @@ export default class App {
     // mesh.position.set(5, 0, 5);
     mesh.receiveShadow = true;
 
-    this.scene.add(mesh);
+    return mesh;
   }
 
   createCone(geometry, material) {
