@@ -1,98 +1,71 @@
 import 'styles/index.css';
 
-import {
-  radians,
-} from './helpers';
+const radians = (degrees) => {
+  return degrees * Math.PI / 180;
+}
+
+const map = (value, start1, stop1, start2, stop2) => {
+  return (value - start1) / (stop1 - start1) * (stop2 - start2) + start2
+}
+
+const distance = (x1, y1, x2, y2) => {
+  return Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+}
 
 export default class App {
   constructor() {
-    this.groundColor = '#fed244';
-    this.coneColor = '#fed244';
-    this.spotLightColor = '#fed244';
-    this.ambientLightColor = '#fed244';
-    this.innerTubeColor = '#fed244';
-    this.ground = {};
-    this.groupCones = new THREE.Object3D();
     this.tiles = [];
-    this.radius = 1;
-    this.angle = 0;
-    this.gridSize = 2;
-    this.cols = this.gridSize
-    this.rows = this.gridSize;
-    this.gui = new dat.GUI();
+    this.cols = 2;
+    this.rows = 2;
 
+    this.angle = 0;
     this.amplitude = 0;
-    this.frequency = 2;
+    this.frequency = 1;
     this.wavelength = 0;
-    this.speed = 6000;
-    this.position = 10;
+    this.speed = 1000;
 
     this.init();
 
-    const wave = this.gui.addFolder('Wave');
-    wave.add(this, 'amplitude', -4, 4).onChange((amplitude) => {
-      this.amplitude = amplitude;
-    });
-
-    wave.add(this, 'wavelength', -200, 200).onChange((wavelength) => {
-      this.wavelength = wavelength;
-    });
-
-    wave.add(this, 'frequency', 0, 20).onChange((frequency) => {
-      this.frequency = frequency;
-    });
-    
     window.addEventListener('resize', this.onResize.bind(this), { passive: true });
   }
 
-  drawWave() {
-    for (let i = 0; i < this.cols; i++) {
-      for (let j = 0; j < this.rows; j++) {
-        const distance = this.distance(j, i, -this.rows, -this.cols);
-        const offset = this.map(distance, -this.wavelength, 100, -140, this.wavelength);
-        const angle = this.angle + offset;
-        const y = this.map(Math.sin(angle), -1, 1, -4, this.amplitude);
-
-        this.tiles[i][j].position.y = y;
-      }
-    }
-
-
-    this.angle -= this.frequency / 20;
-  }
-
-  addPointLight(params) {
-    const pointLight = new THREE.PointLight(params.color, params.intensity);
-    pointLight.position.set(params.position.x, params.position.y, params.position.z);
-
-    this.scene.add(pointLight);
-  }
-
   init() {
+    this.floorShape = this.createShape();
     this.createScene();
     this.createCamera();
-    this.addAmbientLight(this.ambientLightColor);
-    // this.addSpotLight(new THREE.SpotLight(this.spotLightColor), 600, 1000, -600);
+    this.addAmbientLight();
+    this.addDirectionalLight();
     this.addCameraControls();
-
-    this.floorShape = this.createShape();
-    this.ground = this.createGround(this.floorShape);
- 
-    this.spheres = []
-
-    this.pointLightObj = {
-      color: '#fed244',
-      intensity: 4,
-      position: {
-        x: 0,
-        y: 29,
-        z: 29,
-      }
-    };
-
-    // this.addPointLight(this.pointLightObj);
+    this.addCones(this.floorShape);
+    this.addGround(this.floorShape);
 
     this.animate();
+  }
+
+  addDirectionalLight() {
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 1, 0);
+    light.castShadow = true;
+    
+    light.shadow.camera.far = 2000;
+    light.shadow.camera.near = -50;
+
+    light.shadow.camera.left = -20;
+    light.shadow.camera.right = 20;  
+    light.shadow.camera.top = 15;  
+    light.shadow.camera.bottom = -15;  
+    light.shadow.camera.zoom = 1;
+
+    const targetObject = new THREE.Object3D();
+    targetObject.position.set(-20, -5, -10);
+
+    light.target = targetObject;
+
+    this.scene.add(light);
+    this.scene.add(light.target);
+
+    var helper = new THREE.CameraHelper( light.shadow.camera );
+    this.scene.add( helper );
   }
 
   createScene() {
@@ -104,27 +77,15 @@ export default class App {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     document.body.appendChild(this.renderer.domElement);
-
-    var light = new THREE.DirectionalLight( 0xffffff, 1, 10);
-    light.position.set( 10, 10, 0 ); 			//default; light shining from top
-    light.castShadow = true;            // default false
-    this.scene .add( light );
-    
-    //Set up shadow properties for the light
-    // light.shadow.mapSize.width = 512;  // default
-    // light.shadow.mapSize.height = 512; // default
-    // light.shadow.camera.near = 1;    // default
-    // light.shadow.camera.far = 500;     // default
-    var targetObject = new THREE.Object3D();
-    targetObject.position.set( 1, 0, 2 ); 	
-    this.scene.add(targetObject);
-
-    light.target = targetObject;
   }
 
   createCamera() {
-    this.camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 1, 1000);
-    this.camera.position.set(30, 30, -30);
+    const fov = 25;
+    const aspect = window.innerWidth / window.innerHeight;
+    const near = 1; 
+    const far = 1000;
+    this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.camera.position.set(-30, 30, 30);
     this.scene.add(this.camera);
   }
 
@@ -133,20 +94,13 @@ export default class App {
     // this.controls.maxPolarAngle = radians(50);
   }
 
-  addSpotLight(spotLight, x, y, z) {
-    this.spotLight = spotLight;
-    this.spotLight.position.set(x, y, z);
-    this.spotLight.castShadow = true;
-    this.scene.add(this.spotLight);
-  }
-
-  addAmbientLight(color) {
-    const light = new THREE.AmbientLight(color, 1);
+  addAmbientLight() {
+    const light = new THREE.AmbientLight('#fed244', 1, 100);
     this.scene.add(light);
   }
 
   createShape() {
-    const size = 10;
+    const size = 50;
     const vectors = [
       new THREE.Vector2(-size, size),
       new THREE.Vector2(-size, -size),
@@ -157,87 +111,74 @@ export default class App {
     const shape = new THREE.Shape(vectors);
     shape.autoClose = true;
 
-    const geometryCone = new THREE.CylinderGeometry(1, 1, 4, 59);
-
-    this.materialCone = new THREE.MeshPhongMaterial({
-      color: this.coneColor,
-    });
-
-    this.createHoles(shape, {
-      geometry: geometryCone,
-      material: this.materialCone
-    });
-
-
-    this.scene.add(this.groupCones);
-
     return shape;
   }
 
-  createHoles(shape, props) {
-    const finalPos = (i) => {
-      return (-i * 1.5);
-    }
+  addCones(shape) {
+    const spacing = 2;
+    const geometry = new THREE.CylinderGeometry(1, 1, 4, 64);
+    const material = new THREE.MeshPhongMaterial({ color: '#fed244' });
+    const finalPos = (i) => { return (-i * spacing); }
+
+    this.groupCones = new THREE.Object3D();
 
     for (let i = 0; i < this.cols; i++) {
       this.tiles[i] = [];
 
       for (let j = 0; j < this.rows; j++) {
-        const holePath = new THREE.Path();
         const x = finalPos(i);
         const y = finalPos(j);
 
-        holePath.moveTo(x, y);
-        holePath.ellipse(x, y, this.radius, this.radius, 0, Math.PI * 2);
-        holePath.autoClose = true;
-        shape.holes.push(holePath);
+        this.createHole(shape, x, y);
 
-        this.tiles[i][j] = this.createCone(props.geometry, props.material);
-        this.tiles[i][j].position.set(x - (i * 1.5), 0, y - (j * 1.5));
+        this.tiles[i][j] = this.createCone(geometry, material);
+        this.tiles[i][j].position.set(x - (i * spacing), 0, y - (j * spacing));
 
         this.groupCones.add(this.tiles[i][j]);
       }
     }
 
-    this.groupCones.position.set(5, 0, 5);
+    // this.groupCones.position.set(5, 0, 5);
+    this.scene.add(this.groupCones);
   }
 
-  createGround(shape) {
-    var materials = [
+  createHole(shape, x, y) {
+    const holePath = new THREE.Path();
+    const radius = 1;
+
+    holePath.moveTo(x, y);
+    holePath.ellipse(x, y, radius, radius, 0, Math.PI * 2);
+    holePath.autoClose = true;
+
+    shape.holes.push(holePath);
+  }
+
+  addGround(shape) {
+    const groundColor = '#fed244';
+    const materials = [
+      new THREE.MeshPhongMaterial({ color: groundColor }),
       new THREE.MeshPhongMaterial({
-        color: this.groundColor,
-      }),
-      new THREE.MeshPhongMaterial({
-        color: this.groundColor,
+        color: groundColor,
         side: THREE.DoubleSide
       }),
     ];
 
     const props = {
-      steps: 32,
-      depth: 1,
+      steps: 8,
+      depth: 4,
       bevelEnabled: false
     };
 
-    const geometry = new THREE.ExtrudeGeometry(
-      shape,
-      props
-    );
-
+    const geometry = new THREE.ExtrudeGeometry(shape, props);
     const mesh = new THREE.Mesh(geometry, materials);
-    mesh.rotation.set(Math.PI * 0.5, 0, 0);
-    mesh.material.needsUpdate= true;
 
-    mesh.position.set(5, 0, 5);
+    mesh.rotation.set(Math.PI * 0.5, 0, 0);
+    mesh.material.needsUpdate = true;
+
+    // mesh.position.set(5, 0, 5);
     mesh.receiveShadow = true;
 
     this.scene.add(mesh);
-
-    return mesh;
-  }
-
-  distance(x1, y1, x2, y2) {
-    return Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
   }
 
   createCone(geometry, material) {
@@ -247,25 +188,32 @@ export default class App {
     obj.castShadow = true;
 
     const pivot = new THREE.Object3D();
-
     pivot.add(obj);
     pivot.size = 0;
 
     return pivot;
   }
 
-  animate() {
-    this.controls.update();
+  drawWave() {
+    for (let i = 0; i < this.cols; i++) {
+      for (let j = 0; j < this.rows; j++) {
+        const dist = distance(j, i, -this.rows, -this.cols);
+        const offset = map(dist, -this.wavelength, 100, -140, this.wavelength);
+        const angle = this.angle + offset;
+        const y = map(Math.sin(angle), -1, 1, -4, this.amplitude);
 
-    this.renderer.render(this.scene, this.camera);
+        this.tiles[i][j].position.y = y;
+      }
+    }
 
-    this.drawWave();
-
-    requestAnimationFrame(this.animate.bind(this));
+    this.angle -= this.frequency / 20;
   }
 
-  map(value, start1, stop1, start2, stop2) {
-    return (value - start1) / (stop1 - start1) * (stop2 - start2) + start2
+  animate() {
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+    this.drawWave();
+    requestAnimationFrame(this.animate.bind(this));
   }
 
   onResize() {
