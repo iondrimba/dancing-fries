@@ -16,19 +16,19 @@ const hexToRgbTreeJs = (hex) => {
 
 export default class App {
   constructor() {
-    this.color = '#fed244';
+    this.color = '#bf08ff'; //'#fed244';
     this.coneMaterials = [
-      new THREE.MeshLambertMaterial({ color: this.color}),
+      new THREE.MeshLambertMaterial({ color: '#fed244'}),
       new THREE.MeshLambertMaterial({ color: this.color }),
-      new THREE.MeshLambertMaterial({ color: this.color }),
+      new THREE.MeshLambertMaterial({ color: '#fed244' }),
     ];
     this.holesMaterials = [
       new THREE.MeshLambertMaterial({ color: this.color }),
-      new THREE.MeshLambertMaterial({ color: this.color }),
+      new THREE.MeshLambertMaterial({ color: '#5f0580' }),
     ];
     this.gui = new dat.GUI();
     this.gui.close();
-    this.cols = 12;
+    this.cols = 10;
     this.rows = 5;
     this.coneRadius = .6;
     this.coneHeight = 4;
@@ -147,7 +147,7 @@ export default class App {
   }
 
   addAmbientLight() {
-    const light = new THREE.AmbientLight(this.color, 1, 1000);
+    const light = new THREE.AmbientLight(0xffffff, 1, 1000);
     this.scene.add(light);
   }
 
@@ -228,7 +228,7 @@ export default class App {
     if (this.flipped) {
       this.groupCones.position.set(-4, 0, 12);
       this.ground.position.set(-4, 0, 12);
-      this.scene.rotation.x = radians(-180);
+      this.scene.rotation.x = radians(180);
     } else {
       this.groupCones.position.set(-6, 0, 4);
       this.ground.position.set(-6, 0, 4);
@@ -239,9 +239,9 @@ export default class App {
   }
 
   animateIn(element, index, onComplete = () => { }) {
-    TweenMax.to(element.position, .5, {
+    TweenMax.to(element.position, .3, {
       y: (this.coneHeight * .5),
-      ease: Expo.easeOut,
+      ease: Back.easeOut.config(1.7),
       delay: index * .03,
       onUpdate: () => { element.castShadow = true },
       onCompleteParams: [element, index],
@@ -250,16 +250,16 @@ export default class App {
   }
 
   animateOut(element, index) {
-    TweenMax.to(element.position, .8, {
+    TweenMax.to(element.position, 1, {
       y: -(this.coneHeight * .5),
-      ease: Elastic.easeOut.config(2, 2),
+      ease:  Elastic.easeOut.config(2, 2),
       onCompleteParams: [element, index],
       onComplete: (elm, i) => {
         elm.castShadow = false;
 
         if (i === this.cones.length - 1) {
           this.flipCamera();
-          this.animateGrid();
+          TweenMax.delayedCall(2, this.animateGrid.bind(this));
         }
       }
     })
