@@ -16,18 +16,20 @@ const hexToRgbTreeJs = (hex) => {
 
 export default class App {
   constructor() {
-    this.color = '#bf08ff'; //'#fed244';
+    this.mainColor = '#bf08ff';
+    this.coneColor = '#fed244';
+    this.holeShadowColor = '#5f0580';
+
     this.coneMaterials = [
-      new THREE.MeshLambertMaterial({ color: '#fed244'}),
-      new THREE.MeshLambertMaterial({ color: this.color }),
-      new THREE.MeshLambertMaterial({ color: '#fed244' }),
+      new THREE.MeshLambertMaterial({ color: this.coneColor }),
+      new THREE.MeshLambertMaterial({ color: this.mainColor }),
+      new THREE.MeshLambertMaterial({ color: this.coneColor }),
     ];
     this.holesMaterials = [
-      new THREE.MeshLambertMaterial({ color: this.color }),
-      new THREE.MeshLambertMaterial({ color: '#5f0580' }),
+      new THREE.MeshLambertMaterial({ color: this.mainColor }),
+      new THREE.MeshLambertMaterial({ color: this.holeShadowColor }),
     ];
     this.gui = new dat.GUI();
-    this.gui.close();
     this.cols = 10;
     this.rows = 5;
     this.coneRadius = .6;
@@ -40,7 +42,7 @@ export default class App {
   }
 
   init() {
-     this.createScene();
+    this.createScene();
     this.createCamera();
     this.addAmbientLight();
     this.addDirectionalLight();
@@ -59,16 +61,22 @@ export default class App {
   }
 
   addGUIControls() {
-    const backgroundGUI = this.gui.addFolder('Color');
-    backgroundGUI.addColor(this, 'color').onChange((color) => {
+    const colors = this.gui.addFolder('Colors');
+    colors.open();
+    colors.addColor(this, 'mainColor').onChange((color) => {
       document.body.style.backgroundColor = color;
       this.scene.background = new THREE.Color(color);
       this.ground.material[0].color = hexToRgbTreeJs(color);
-      this.coneMaterials[0].color = hexToRgbTreeJs(color);
       this.coneMaterials[1].color = hexToRgbTreeJs(color);
-      this.coneMaterials[2].color = hexToRgbTreeJs(color);
-
       this.holesMaterials[0].color = hexToRgbTreeJs(color);
+    });
+
+    colors.addColor(this, 'coneColor').onChange((color) => {
+      this.coneMaterials[0].color = hexToRgbTreeJs(color);
+      this.coneMaterials[2].color = hexToRgbTreeJs(color);
+    });
+
+    colors.addColor(this, 'holeShadowColor').onChange((color) => {
       this.holesMaterials[1].color = hexToRgbTreeJs(color);
     });
   }
@@ -103,16 +111,17 @@ export default class App {
     this.scene.add(this.directionalLight.target);
 
     const lightGUI = this.gui.addFolder('Light');
+    lightGUI.open();
     lightGUI.add(targetObject.position, 'x', -100, 100).onChange((x) => {
-      targetObject.position.x = x ;
+      targetObject.position.x = x;
     });
 
     lightGUI.add(targetObject.position, 'y', -100, 100).onChange((y) => {
-      targetObject.position.y = y ;
+      targetObject.position.y = y;
     });
 
     lightGUI.add(targetObject.position, 'z', -100, 100).onChange((z) => {
-      targetObject.position.z = z ;
+      targetObject.position.z = z;
     });
 
     this.aa = new THREE.DirectionalLight(0x000000, .1, 1000);
@@ -252,14 +261,14 @@ export default class App {
   animateOut(element, index) {
     TweenMax.to(element.position, 1, {
       y: -(this.coneHeight * .5),
-      ease:  Elastic.easeOut.config(2, 2),
+      ease: Elastic.easeOut.config(2, 2),
       onCompleteParams: [element, index],
       onComplete: (elm, i) => {
         elm.castShadow = false;
 
         if (i === this.cones.length - 1) {
           this.flipCamera();
-          TweenMax.delayedCall(2, this.animateGrid.bind(this));
+          this.animateGrid();
         }
       }
     })
